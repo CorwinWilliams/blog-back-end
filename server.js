@@ -2,9 +2,11 @@
 import express from "express";
 import cors from "cors";
 // 2 (through 16) Imports sequelize setup
-import { db, Post, Comment } from "./db/db.js";
+import { db, Post, Comment, CommentReply } from "./db/db.js";
 import { Op } from "sequelize";
 import multer from "multer";
+import jwt from "jsonwebtoken";
+import fs from "fs";
 
 //17 Setup express server to parse json body and allow CORS
 const server = express();
@@ -24,18 +26,26 @@ server.get("/", (req, res) => {
 server.post("/newPost", async (req, res) => {
     //42 Use the form values from #39 to make a new post in the DB
     console.log(req.file);
-    if (req.file.size > 500000) {
+    if (req.file && req.file.size > 500000) {
         res.send({ error: "file too big" });
     } else {
-        await Post.create({
+        const creationDetails = await Post.create({
             title: req.body.title,
             content: req.body.content,
             tagline: req.body.tagline,
-            image: req.file.buffer,
-            imageType: req.file.mimetype,
+            image: req.file?.buffer,
+            imageType: req.file?.mimetype,
+            author: `Nathan Evans`,
         });
 
-        res.send();
+        // console.log(creationDetails);
+        // await Comment.create({
+        // 	postID: creationDetails.dataValues.id,
+        // 	author: "bot",
+        // 	content: "Yay auto comments",
+        // });
+
+        res.send({});
     }
 });
 
@@ -51,9 +61,23 @@ server.get("/post/:id", async (req, res) => {
     res.send({
         post: await Post.findOne({
             where: { id: req.params.id },
-            include: [Comment],
+            include: [{ model: Comment, include: CommentReply }],
         }),
     });
+});
+
+server.delete("/commentReply/:id", async (req, res) => {
+    await CommentReply.destroy({ where: { id: req.params.id } });
+    res.send();
+});
+
+server.post("/commentReply/:commentID", async (req, res) => {
+    console.log(req.params.commentID, req.body.text);
+    await CommentReply.create({
+        content: req.body.text,
+        commentID: req.params.commentID,
+    });
+    res.send();
 });
 
 server.delete("/post/:id", async (req, res) => {
@@ -64,8 +88,12 @@ server.delete("/post/:id", async (req, res) => {
 
 server.post("/comment", async (req, res) => {
     await Comment.create(req.body);
+    console.log(req.body);
     res.send({
-        comments: await Comment.findAll({ where: { postID: req.body.postID } }),
+        comments: await Comment.findAll({
+            where: { postID: req.body.postID },
+            include: [CommentReply],
+        }),
     });
 });
 

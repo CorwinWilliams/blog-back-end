@@ -2,6 +2,8 @@ import Sequelize from "sequelize";
 import PostModel from "./post.js";
 import CommentModel from "./Comment.js";
 
+process.env.DATABSE_URL;
+
 const db = new Sequelize("postgres://corwin@localhost:5432/blog");
 
 const Post = PostModel(db);
